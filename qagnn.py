@@ -419,16 +419,41 @@ def eval_detail(args):
                                            subsample=args.subsample, use_cache=args.use_cache)
 
     save_test_preds = args.save_model
-    dev_acc = evaluate_accuracy(dataset.dev(), model)
-    print('dev_acc {:7.4f}'.format(dev_acc))
+    dev_acc, dev_pro_f1, dev_con_f1, dev_neu_f1, dev_f1_ma = evaluate_accuracy(dataset.dev(), model)
+    print('dev_f1_ma {:7.4f}'.format(dev_f1_ma))
     if not save_test_preds:
-        test_acc = evaluate_accuracy(dataset.test(), model) if args.test_statements else 0.0
+        test_acc, test_pro_f1, test_con_f1, test_neu_f1, test_f1_ma = evaluate_accuracy(dataset.test(), model) if args.test_statements else 0.0
+    # else:
+    #     eval_set = dataset.test()
+    #     total_acc = []
+    #     count = 0
+    #     dt = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
+    #     preds_path = os.path.join(args.save_dir, 'test_preds_{}.csv'.format(dt))
+    #     with open(preds_path, 'w') as f_preds:
+    #         with torch.no_grad():
+    #             for qids, labels, *input_data in tqdm(eval_set):
+    #                 count += 1
+    #                 logits, _, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
+    #                 predictions = logits.argmax(1) #[bsize, ]
+    #                 preds_ranked = (-logits).argsort(1) #[bsize, n_choices]
+    #                 for i, (qid, label, pred, _preds_ranked, cids, ntype, edges, etype) in enumerate(zip(qids, labels, predictions, preds_ranked, concept_ids, node_type_ids, edge_index, edge_type)):
+    #                     acc = int(pred.item()==label.item())
+    #                     print ('{},{}'.format(qid, chr(ord('A') + pred.item())), file=f_preds)
+    #                     f_preds.flush()
+    #                     total_acc.append(acc)
+    #     test_acc = float(sum(total_acc))/len(total_acc)
+
+    #     print('-' * 71)
+    #     print('test_acc {:7.4f}'.format(test_acc))
+    #     print('-' * 71)
+
     else:
         eval_set = dataset.test()
         total_acc = []
         count = 0
         dt = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
         preds_path = os.path.join(args.save_dir, 'test_preds_{}.csv'.format(dt))
+        y_label,y_pred = [],[]
         with open(preds_path, 'w') as f_preds:
             with torch.no_grad():
                 for qids, labels, *input_data in tqdm(eval_set):
@@ -438,16 +463,21 @@ def eval_detail(args):
                     preds_ranked = (-logits).argsort(1) #[bsize, n_choices]
                     for i, (qid, label, pred, _preds_ranked, cids, ntype, edges, etype) in enumerate(zip(qids, labels, predictions, preds_ranked, concept_ids, node_type_ids, edge_index, edge_type)):
                         acc = int(pred.item()==label.item())
-                        print ('{},{}'.format(qid, chr(ord('A') + pred.item())), file=f_preds)
+                        y_label.append(label.item())
+                        y_pred.append(pred.item())
+                        # print ('{},{}'.format(qid, chr(ord('A') + pred.item())), file=f_preds)
+                        print ('{},{},{}'.format(qid, str(pred.item()),str(label.item())), file=f_preds)
                         f_preds.flush()
                         total_acc.append(acc)
         test_acc = float(sum(total_acc))/len(total_acc)
+        test_pro_f1 = f1_score(y_label,y_pred,labels=[1],average="macro")
+        test_con_f1 = f1_score(y_label,y_pred,labels=[0],average="macro")
+        test_neu_f1 = f1_score(y_label,y_pred,labels=[2],average="macro")
+        test_f1_ma = f1_score(y_label,y_pred,labels=list(range(3)),average="macro")
 
-        print('-' * 71)
-        print('test_acc {:7.4f}'.format(test_acc))
-        print('-' * 71)
-
-
+    print('-' * 71)
+    print('| dev_acc {:7.4f} | test_acc {:7.4f} | test_pro_f1 {:7.4f} | test_con_f1 {:7.4f} | test_neu_f1 {:7.4f} | test_ma_f1 {:7.4f} |'.format(dev_acc, test_acc, test_pro_f1, test_con_f1, test_neu_f1, test_f1_ma))
+    print('-' * 71)
 
 if __name__ == '__main__':
     main()

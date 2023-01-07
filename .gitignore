@@ -3,5 +3,6 @@
 .ipynb_checkpoints
 
 logs
-data
+data*
 saved*
+*tar.gz
