@@ -5,7 +5,7 @@ from utils.convert_csqa import convert_to_entailment,convert_vast
 from utils.convert_obqa import convert_to_obqa_statement
 from utils.conceptnet import extract_english, construct_graph
 from utils.grounding import create_matcher_patterns, ground
-from utils.graph import generate_adj_data_from_grounded_concepts__use_LM
+from utils.graph import generate_adj_data_from_grounded_concepts__use_LM,generate_adj_data_from_grounded_concepts__use_SentBert
 
 input_paths = {
     'vast_zero': {
@@ -79,86 +79,142 @@ output_paths = {
         'graph': {
             'adj-train': './data/vast_zero/graph/train.graph.adj.pk',
             'adj-dev': './data/vast_zero/graph/dev.graph.adj.pk',
-            'adj-train_1':  './data/vast_zero/graph/train_1.graph.adj.pk',
-            'adj-train_2':  './data/vast_zero/graph/train_2.graph.adj.pk',
-            'adj-train_3':  './data/vast_zero/graph/train_3.graph.adj.pk',
-            'adj-train_4':  './data/vast_zero/graph/train_4.graph.adj.pk',
-            'adj-train_5':  './data/vast_zero/graph/train_5.graph.adj.pk',
-            'adj-train_6':  './data/vast_zero/graph/train_6.graph.adj.pk',
-            'adj-train_7':  './data/vast_zero/graph/train_7.graph.adj.pk',
-            'adj-train_8':  './data/vast_zero/graph/train_8.graph.adj.pk',
-            'adj-train_9':  './data/vast_zero/graph/train_9.graph.adj.pk',
-            'adj-train_10': './data/vast_zero/graph/train_10.graph.adj.pk',
-            'adj-train_11': './data/vast_zero/graph/train_11.graph.adj.pk',
-            'adj-train_12': './data/vast_zero/graph/train_12.graph.adj.pk',
-            'adj-train_13': './data/vast_zero/graph/train_13.graph.adj.pk',
-            'adj-train_14': './data/vast_zero/graph/train_14.graph.adj.pk',
+            'adj-test': './data/vast_zero/graph/test.graph.adj.pk',
+            # 'adj-train_1':  './data/vast_zero/graph/train_1.graph.adj.pk',
+            # 'adj-train_2':  './data/vast_zero/graph/train_2.graph.adj.pk',
+            # 'adj-train_3':  './data/vast_zero/graph/train_3.graph.adj.pk',
+            # 'adj-train_4':  './data/vast_zero/graph/train_4.graph.adj.pk',
+            # 'adj-train_5':  './data/vast_zero/graph/train_5.graph.adj.pk',
+            # 'adj-train_6':  './data/vast_zero/graph/train_6.graph.adj.pk',
+            # 'adj-train_7':  './data/vast_zero/graph/train_7.graph.adj.pk',
+            # 'adj-train_8':  './data/vast_zero/graph/train_8.graph.adj.pk',
+            # 'adj-train_9':  './data/vast_zero/graph/train_9.graph.adj.pk',
+            # 'adj-train_10': './data/vast_zero/graph/train_10.graph.adj.pk',
+            # 'adj-train_11': './data/vast_zero/graph/train_11.graph.adj.pk',
+            # 'adj-train_12': './data/vast_zero/graph/train_12.graph.adj.pk',
+            # 'adj-train_13': './data/vast_zero/graph/train_13.graph.adj.pk',
+            # 'adj-train_14': './data/vast_zero/graph/train_14.graph.adj.pk',
         },
+        'graph_sent': {
+            'adj-train-sent': './data/vast_zero/graph_sent/train_sent.graph.adj.pk',
+            'adj-dev-sent': './data/vast_zero/graph_sent/dev_sent.graph.adj.pk',
+            'adj-test-sent': './data/vast_zero/graph_sent/test_sent.graph.adj.pk',
+        }
     },
-    'csqa': {
+    'vast_few': {
         'statement': {
-            'train': './data/csqa/statement/train.statement.jsonl',
-            'dev': './data/csqa/statement/dev.statement.jsonl',
-            'test': './data/csqa/statement/test.statement.jsonl',
+            'train': './data/vast_few/statement/train.statement.jsonl',
+            'dev': './data/vast_few/statement/dev.statement.jsonl',
+            'test': './data/vast_few/statement/test.statement.jsonl',
         },
         'grounded': {
-            'train': './data/csqa/grounded/train.grounded.jsonl',
-            'dev': './data/csqa/grounded/dev.grounded.jsonl',
-            'test': './data/csqa/grounded/test.grounded.jsonl',
+            'train': './data/vast_few/grounded/train.grounded.jsonl',
+            'dev': './data/vast_few/grounded/dev.grounded.jsonl',
+            'test': './data/vast_few/grounded/test.grounded.jsonl',
         },
         'graph': {
-            'adj-train': './data/csqa/graph/train.graph.adj.pk',
-            'adj-dev': './data/csqa/graph/dev.graph.adj.pk',
-            'adj-test': './data/csqa/graph/test.graph.adj.pk',
+            'adj-train': './data/vast_few/graph/train.graph.adj.pk',
+            'adj-dev': './data/vast_few/graph/dev.graph.adj.pk',
+            'adj-test': './data/vast_few/graph/test.graph.adj.pk',
+            'adj-train-sent': './data/vast_few/graph/train_sent.graph.adj.pk',
+            'adj-dev-sent': './data/vast_few/graph/dev_sent.graph.adj.pk',
+            'adj-test-sent': './data/vast_few/graph/test_sent.graph.adj.pk',
         },
+        'graph_sent': {
+            'adj-train-sent': './data/vast_few/graph_sent/train_sent.graph.adj.pk',
+            'adj-dev-sent': './data/vast_few/graph_sent/dev_sent.graph.adj.pk',
+            'adj-test-sent': './data/vast_few/graph_sent/test_sent.graph.adj.pk',
+        }
     },
-    'csqa': {
+    'vast_all': {
         'statement': {
-            'train': './data/csqa/statement/train.statement.jsonl',
-            'dev': './data/csqa/statement/dev.statement.jsonl',
-            'test': './data/csqa/statement/test.statement.jsonl',
+            'train': './data/vast_all/statement/train.statement.jsonl',
+            'dev': './data/vast_all/statement/dev.statement.jsonl',
+            'test': './data/vast_all/statement/test.statement.jsonl',
         },
         'grounded': {
-            'train': './data/csqa/grounded/train.grounded.jsonl',
-            'dev': './data/csqa/grounded/dev.grounded.jsonl',
-            'test': './data/csqa/grounded/test.grounded.jsonl',
+            'train': './data/vast_all/grounded/train.grounded.jsonl',
+            'dev': './data/vast_all/grounded/dev.grounded.jsonl',
+            'test': './data/vast_all/grounded/test.grounded.jsonl',
         },
         'graph': {
-            'adj-train': './data/csqa/graph/train.graph.adj.pk',
-            'adj-dev': './data/csqa/graph/dev.graph.adj.pk',
-            'adj-test': './data/csqa/graph/test.graph.adj.pk',
+            'adj-train': './data/vast_all/graph/train.graph.adj.pk',
+            'adj-dev': './data/vast_all/graph/dev.graph.adj.pk',
+            'adj-test': './data/vast_all/graph/test.graph.adj.pk',
+            'adj-train-sent': './data/vast_all/graph/train_sent.graph.adj.pk',
+            'adj-dev-sent': './data/vast_all/graph/dev_sent.graph.adj.pk',
+            'adj-test-sent': './data/vast_all/graph/test_sent.graph.adj.pk',
         },
+        'graph_sent': {
+            'adj-train-sent': './data/vast_all/graph_sent/train_sent.graph.adj.pk',
+            'adj-dev-sent': './data/vast_all/graph_sent/dev_sent.graph.adj.pk',
+            'adj-test-sent': './data/vast_all/graph_sent/test_sent.graph.adj.pk',
+        }
     },
-    'obqa': {
-        'statement': {
-            'train': './data/obqa/statement/train.statement.jsonl',
-            'dev': './data/obqa/statement/dev.statement.jsonl',
-            'test': './data/obqa/statement/test.statement.jsonl',
-            'train-fairseq': './data/obqa/fairseq/official/train.jsonl',
-            'dev-fairseq': './data/obqa/fairseq/official/valid.jsonl',
-            'test-fairseq': './data/obqa/fairseq/official/test.jsonl',
-        },
-        'grounded': {
-            'train': './data/obqa/grounded/train.grounded.jsonl',
-            'dev': './data/obqa/grounded/dev.grounded.jsonl',
-            'test': './data/obqa/grounded/test.grounded.jsonl',
-        },
-        'graph': {
-            'adj-train': './data/obqa/graph/train.graph.adj.pk',
-            'adj-dev': './data/obqa/graph/dev.graph.adj.pk',
-            'adj-test': './data/obqa/graph/test.graph.adj.pk',
-        },
-    },
-    'obqa-fact': {
-        'statement': {
-            'train': './data/obqa/statement/train-fact.statement.jsonl',
-            'dev': './data/obqa/statement/dev-fact.statement.jsonl',
-            'test': './data/obqa/statement/test-fact.statement.jsonl',
-            'train-fairseq': './data/obqa/fairseq/official/train-fact.jsonl',
-            'dev-fairseq': './data/obqa/fairseq/official/valid-fact.jsonl',
-            'test-fairseq': './data/obqa/fairseq/official/test-fact.jsonl',
-        },
-    },
+    # 'csqa': {
+    #     'statement': {
+    #         'train': './data/csqa/statement/train.statement.jsonl',
+    #         'dev': './data/csqa/statement/dev.statement.jsonl',
+    #         'test': './data/csqa/statement/test.statement.jsonl',
+    #     },
+    #     'grounded': {
+    #         'train': './data/csqa/grounded/train.grounded.jsonl',
+    #         'dev': './data/csqa/grounded/dev.grounded.jsonl',
+    #         'test': './data/csqa/grounded/test.grounded.jsonl',
+    #     },
+    #     'graph': {
+    #         'adj-train': './data/csqa/graph/train.graph.adj.pk',
+    #         'adj-dev': './data/csqa/graph/dev.graph.adj.pk',
+    #         'adj-test': './data/csqa/graph/test.graph.adj.pk',
+    #     },
+    # },
+    # 'csqa': {
+    #     'statement': {
+    #         'train': './data/csqa/statement/train.statement.jsonl',
+    #         'dev': './data/csqa/statement/dev.statement.jsonl',
+    #         'test': './data/csqa/statement/test.statement.jsonl',
+    #     },
+    #     'grounded': {
+    #         'train': './data/csqa/grounded/train.grounded.jsonl',
+    #         'dev': './data/csqa/grounded/dev.grounded.jsonl',
+    #         'test': './data/csqa/grounded/test.grounded.jsonl',
+    #     },
+    #     'graph': {
+    #         'adj-train': './data/csqa/graph/train.graph.adj.pk',
+    #         'adj-dev': './data/csqa/graph/dev.graph.adj.pk',
+    #         'adj-test': './data/csqa/graph/test.graph.adj.pk',
+    #     },
+    # },
+    # 'obqa': {
+    #     'statement': {
+    #         'train': './data/obqa/statement/train.statement.jsonl',
+    #         'dev': './data/obqa/statement/dev.statement.jsonl',
+    #         'test': './data/obqa/statement/test.statement.jsonl',
+    #         'train-fairseq': './data/obqa/fairseq/official/train.jsonl',
+    #         'dev-fairseq': './data/obqa/fairseq/official/valid.jsonl',
+    #         'test-fairseq': './data/obqa/fairseq/official/test.jsonl',
+    #     },
+    #     'grounded': {
+    #         'train': './data/obqa/grounded/train.grounded.jsonl',
+    #         'dev': './data/obqa/grounded/dev.grounded.jsonl',
+    #         'test': './data/obqa/grounded/test.grounded.jsonl',
+    #     },
+    #     'graph': {
+    #         'adj-train': './data/obqa/graph/train.graph.adj.pk',
+    #         'adj-dev': './data/obqa/graph/dev.graph.adj.pk',
+    #         'adj-test': './data/obqa/graph/test.graph.adj.pk',
+    #     },
+    # },
+    # 'obqa-fact': {
+    #     'statement': {
+    #         'train': './data/obqa/statement/train-fact.statement.jsonl',
+    #         'dev': './data/obqa/statement/dev-fact.statement.jsonl',
+    #         'test': './data/obqa/statement/test-fact.statement.jsonl',
+    #         'train-fairseq': './data/obqa/fairseq/official/train-fact.jsonl',
+    #         'dev-fairseq': './data/obqa/fairseq/official/valid-fact.jsonl',
+    #         'test-fairseq': './data/obqa/fairseq/official/test-fact.jsonl',
+    #     },
+    # },
 }
 
 
@@ -185,18 +241,55 @@ def main():
             {'func': create_matcher_patterns, 'args': (output_paths['cpnet']['vocab'], output_paths['cpnet']['patterns'])},
         ],
         'vast_zero': [
-            {'func': convert_vast, 'args': (input_paths['vast_zero']['train'], output_paths['vast_zero']['statement']['train'])},
+            # {'func': convert_vast, 'args': (input_paths['vast_zero']['train'], output_paths['vast_zero']['statement']['train'])},
             # {'func': convert_vast, 'args': (input_paths['vast_zero']['dev'], output_paths['vast_zero']['statement']['dev'])},
             # {'func': convert_vast, 'args': (input_paths['vast_zero']['test'], output_paths['vast_zero']['statement']['test'])},
-            {'func': ground, 'args': (output_paths['vast_zero']['statement']['train'], output_paths['cpnet']['vocab'],
-                                      output_paths['cpnet']['patterns'], output_paths['vast_zero']['grounded']['train'], args.nprocs)},
+            # {'func': ground, 'args': (output_paths['vast_zero']['statement']['train'], output_paths['cpnet']['vocab'],
+            #                           output_paths['cpnet']['patterns'], output_paths['vast_zero']['grounded']['train'], args.nprocs)},
             # {'func': ground, 'args': (output_paths['vast_zero']['statement']['dev'], output_paths['cpnet']['vocab'],
             #                           output_paths['cpnet']['patterns'], output_paths['vast_zero']['grounded']['dev'], args.nprocs)},
             # {'func': ground, 'args': (output_paths['vast_zero']['statement']['test'], output_paths['cpnet']['vocab'],
             #                           output_paths['cpnet']['patterns'], output_paths['vast_zero']['grounded']['test'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_zero']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph']['adj-train'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_zero']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph']['adj-train'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_zero']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph']['adj-dev'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_zero']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph']['adj-test'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-train-sent'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-dev-sent'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-test-sent'], args.nprocs)},
+        ],
+        'vast_few': [
+            # {'func': convert_vast, 'args': (input_paths['vast_few']['train'], output_paths['vast_few']['statement']['train'])},
+            # {'func': convert_vast, 'args': (input_paths['vast_few']['dev'], output_paths['vast_few']['statement']['dev'])},
+            # {'func': convert_vast, 'args': (input_paths['vast_few']['test'], output_paths['vast_few']['statement']['test'])},
+            # # {'func': ground, 'args': (output_paths['vast_few']['statement']['train'], output_paths['cpnet']['vocab'],
+            # #                           output_paths['cpnet']['patterns'], output_paths['vast_few']['grounded']['train'], args.nprocs)},
+            # {'func': ground, 'args': (output_paths['vast_few']['statement']['dev'], output_paths['cpnet']['vocab'],
+            #                           output_paths['cpnet']['patterns'], output_paths['vast_few']['grounded']['dev'], args.nprocs)},
+            # {'func': ground, 'args': (output_paths['vast_few']['statement']['test'], output_paths['cpnet']['vocab'],
+            #                           output_paths['cpnet']['patterns'], output_paths['vast_few']['grounded']['test'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_few']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph']['adj-train'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_few']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph']['adj-dev'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_few']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph']['adj-test'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-train-sent'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-dev-sent'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-test-sent'], args.nprocs)},
+        ],
+        'vast_all': [
+            # {'func': convert_vast, 'args': (input_paths['vast_all']['train'], output_paths['vast_all']['statement']['train'])},
+            # {'func': convert_vast, 'args': (input_paths['vast_all']['dev'], output_paths['vast_all']['statement']['dev'])},
+            # {'func': convert_vast, 'args': (input_paths['vast_all']['test'], output_paths['vast_all']['statement']['test'])},
+            # # {'func': ground, 'args': (output_paths['vast_all']['statement']['train'], output_paths['cpnet']['vocab'],
+            # #                           output_paths['cpnet']['patterns'], output_paths['vast_all']['grounded']['train'], args.nprocs)},
+            # {'func': ground, 'args': (output_paths['vast_all']['statement']['dev'], output_paths['cpnet']['vocab'],
+            #                           output_paths['cpnet']['patterns'], output_paths['vast_all']['grounded']['dev'], args.nprocs)},
+            # {'func': ground, 'args': (output_paths['vast_all']['statement']['test'], output_paths['cpnet']['vocab'],
+            #                           output_paths['cpnet']['patterns'], output_paths['vast_all']['grounded']['test'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-train'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-dev'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-test'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-train-sent'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-dev-sent'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-test-sent'], args.nprocs)},
         ],
 
         'csqa': [
