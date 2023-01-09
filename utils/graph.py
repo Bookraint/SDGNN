@@ -1,17 +1,18 @@
 import torch
+import torch.nn as nn
 import networkx as nx
 import itertools
 import json
 from tqdm import tqdm
 from .conceptnet import merged_relations
+from .senti_model import BertSent_Encode
 import numpy as np
 from scipy import sparse
 import pickle
 from scipy.sparse import csr_matrix, coo_matrix
 from multiprocessing import Pool
 from collections import OrderedDict
-
-
+from transformers import BertConfig, BertTokenizer
 from .maths import *
 
 __all__ = ['generate_graph']
@@ -272,10 +273,42 @@ class RobertaForMaskedLMwithLoss(RobertaForMaskedLM):
             # (masked_lm_loss), prediction_scores, sequence_output, (hidden_states), (attentions)
         return outputs
 
-print ('loading pre-trained LM...')
-TOKENIZER = RobertaTokenizer.from_pretrained('roberta-large')
-LM_MODEL = RobertaForMaskedLMwithLoss.from_pretrained('roberta-large')
-LM_MODEL.cuda(); LM_MODEL.eval()
+
+class RobertaForMaskedLMwithLossSent(RobertaForMaskedLM):
+    #
+    def __init__(self, config):
+        super().__init__(config)
+        self.sentbert = BertSent_Encode.from_pretrained('/home/yjx/ZSSD/qagnn-main/SentiX_Base_Model')
+        self.fc = nn.Linear(768,1024)
+    #   
+
+    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, masked_lm_labels=None):
+        #
+        assert attention_mask is not None
+        outputs = self.sentbert(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids, position_ids=position_ids, head_mask=head_mask)
+        sequence_output = outputs[0] #hidden_states of final layer (batch_size, sequence_length, hidden_size)
+        sequence_output = self.fc(sequence_output)
+        prediction_scores = self.lm_head(sequence_output)
+        outputs = (prediction_scores, sequence_output) + outputs[2:]
+        if masked_lm_labels is not None:
+            loss_fct = torch.nn.CrossEntropyLoss(reduction='none')
+            bsize, seqlen = input_ids.size()
+            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1)).view(bsize, seqlen)
+            masked_lm_loss = (masked_lm_loss * attention_mask).sum(dim=1)
+            outputs = (masked_lm_loss,) + outputs
+            # (masked_lm_loss), prediction_scores, sequence_output, (hidden_states), (attentions)
+        return outputs
+
+# print ('loading pre-trained LM...')
+# TOKENIZER = RobertaTokenizer.from_pretrained('roberta-large')
+# LM_MODEL = RobertaForMaskedLMwithLoss.from_pretrained('roberta-large')
+# LM_MODEL.cuda(); LM_MODEL.eval()
+# print ('loading done')
+
+print ('loading SentiBert...')
+St_TOKENIZER = BertTokenizer.from_pretrained('/home/yjx/ZSSD/qagnn-main/SentiX_Base_Model')
+St_MODEL = RobertaForMaskedLMwithLossSent.from_pretrained('roberta-large')
+St_MODEL.cuda(); St_MODEL.eval()
 print ('loading done')
 
 
@@ -314,6 +347,42 @@ def get_LM_score(cids, question):
     cid2score = OrderedDict(sorted(list(zip(cids, scores)), key=lambda x: -x[1])) #score: from high to low
     return cid2score
 
+
+def get_Senti_score(cids, question):
+    cids = cids[:]
+    cids.insert(0, -1) #QAcontext node
+    sents, scores = [], []
+    for cid in cids:
+        if cid==-1:
+            sent = question.lower()
+        else:
+            sent = '{} {}.'.format(question.lower(), ' '.join(id2concept[cid].split('_')))
+        sent = St_TOKENIZER.encode(sent, add_special_tokens=True)
+        sents.append(sent)
+    n_cids = len(cids)
+    cur_idx = 0
+    batch_size = 50
+    while cur_idx < n_cids:
+        #Prepare batch
+        input_ids = sents[cur_idx: cur_idx+batch_size]
+        max_len = max([len(seq) for seq in input_ids])
+        for j, seq in enumerate(input_ids):
+            seq += [St_TOKENIZER.pad_token_id] * (max_len-len(seq))
+            input_ids[j] = seq
+        input_ids = torch.tensor(input_ids).cuda() #[B, seqlen]
+        mask = (input_ids!=1).long() #[B, seq_len]
+        #Get LM score
+        with torch.no_grad():
+            outputs = St_MODEL(input_ids, attention_mask=mask,  masked_lm_labels=input_ids)
+            loss = outputs[0] #[B, ]
+            _scores = list(-loss.detach().cpu().numpy()) #list of float
+        scores += _scores
+        cur_idx += batch_size
+
+    assert len(sents) == len(scores) == len(cids)
+    cid2score = OrderedDict(sorted(list(zip(cids, scores)), key=lambda x: -x[1])) #score: from high to low
+    return cid2score
+
 def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part1(data):
     qc_ids, ac_ids, question = data
     qa_nodes = set(qc_ids) | set(ac_ids)
@@ -325,9 +394,9 @@ def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part1(data):
     extra_nodes = extra_nodes - qa_nodes
     return (sorted(qc_ids), sorted(ac_ids), question, sorted(extra_nodes))
 
-def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part2(data):
+def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part2_sent(data):
     qc_ids, ac_ids, question, extra_nodes = data
-    cid2score = get_LM_score(qc_ids+ac_ids+extra_nodes, question)
+    cid2score = get_Senti_score(qc_ids+ac_ids+extra_nodes, question)
     return (qc_ids, ac_ids, question, extra_nodes, cid2score)
 
 def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part3(data):
@@ -509,6 +578,64 @@ def generate_adj_data_from_grounded_concepts__use_LM(grounded_path, cpnet_graph_
     for j, _data in enumerate(res1):
         if j % 100 == 0: print (j)
         res2.append(concepts_to_adj_matrices_2hop_all_pair__use_LM__Part2(_data))
+
+    with Pool(num_processes) as p:
+        res3 = list(tqdm(p.imap(concepts_to_adj_matrices_2hop_all_pair__use_LM__Part3, res2), total=len(res2)))
+
+    # res is a list of responses
+    with open(output_path, 'wb') as fout:
+        pickle.dump(res3, fout)
+
+    print(f'adj data saved to {output_path}')
+    print()
+
+def generate_adj_data_from_grounded_concepts__use_SentBert(grounded_path, cpnet_graph_path, cpnet_vocab_path, output_path, num_processes):
+    """
+    This function will save
+        (1) adjacency matrics (each in the form of a (R*N, N) coo sparse matrix)
+        (2) concepts ids
+        (3) qmask that specifices whether a node is a question concept
+        (4) amask that specifices whether a node is a answer concept
+        (5) cid2score that maps a concept id to its relevance score given the QA context
+    to the output path in python pickle format
+
+    grounded_path: str
+    cpnet_graph_path: str
+    cpnet_vocab_path: str
+    output_path: str
+    num_processes: int
+    """
+    print(f'generating adj data for {grounded_path}...')
+
+    global concept2id, id2concept, relation2id, id2relation, cpnet_simple, cpnet
+    if any(x is None for x in [concept2id, id2concept, relation2id, id2relation]):
+        load_resources(cpnet_vocab_path)
+    if cpnet is None or cpnet_simple is None:
+        load_cpnet(cpnet_graph_path)
+
+    qa_data = []
+    statement_path = grounded_path.replace('grounded', 'statement')
+    with open(grounded_path, 'r', encoding='utf-8') as fin_ground, open(statement_path, 'r', encoding='utf-8') as fin_state:
+        lines_ground = fin_ground.readlines()
+        lines_state  = fin_state.readlines()
+        assert len(lines_ground) % len(lines_state) == 0
+        n_choices = len(lines_ground) // len(lines_state)
+        for j, line in enumerate(lines_ground):
+            dic = json.loads(line)
+            q_ids = set(concept2id[c] for c in dic['qc'])
+            a_ids = set(concept2id[c] for c in dic['ac'])
+            q_ids = q_ids - a_ids
+            statement_obj = json.loads(lines_state[j//n_choices])
+            QAcontext = "{} {}.".format(statement_obj['question']['stem'], dic['ans'])
+            qa_data.append((q_ids, a_ids, QAcontext))
+
+    with Pool(num_processes) as p:
+        res1 = list(tqdm(p.imap(concepts_to_adj_matrices_2hop_all_pair__use_LM__Part1, qa_data), total=len(qa_data)))
+
+    res2 = []
+    for j, _data in enumerate(res1):
+        if j % 100 == 0: print (j)
+        res2.append(concepts_to_adj_matrices_2hop_all_pair__use_LM__Part2_sent(_data))
 
     with Pool(num_processes) as p:
         res3 = list(tqdm(p.imap(concepts_to_adj_matrices_2hop_all_pair__use_LM__Part3, res2), total=len(res2)))
