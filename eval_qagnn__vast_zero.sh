@@ -15,8 +15,7 @@ echo "******************************"
 echo "dataset: $dataset"
 echo "******************************"
 
-save_dir_pref='saved_models'
-mkdir -p $save_dir_pref
+
 
 ###### Eval ######
 python3 -u qagnn.py --dataset $dataset \
@@ -29,5 +28,5 @@ python3 -u qagnn.py --dataset $dataset \
       --save_model \
       --save_dir saved_models \
       --mode eval_detail \
-      --load_model_path saved_models/csqa_model_hf3.4.0.pt \
+      --load_model_path saved_models/vast_zero/enc-roberta-large__k5__gnndim200__bs64__seed0__20230102_164257/model.pt.13 \
       $args

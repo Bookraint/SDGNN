@@ -11,11 +11,11 @@ shift
 args=$@
 
 
-elr="1e-5"
-dlr="1e-3"
+elr="1e-4"
+dlr="1e-2"
 bs=64
 mbs=2
-n_epochs=15
+n_epochs=40
 num_relation=38 #(17 +2) * 2: originally 17, add 2 relation types (QA context -> Q node; QA context -> A node), and double because we add reverse edges
 
 

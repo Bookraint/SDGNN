@@ -31,6 +31,8 @@ MODEL_NAME_TO_CLASS = {model_name: model_class for model_class, model_name_list 
 model_name = 'cambridgeltl/SapBERT-from-PubMedBERT-fulltext'
 MODEL_NAME_TO_CLASS[model_name] = 'bert'
 
+model_name = 'SentiX_Base_Model'
+MODEL_NAME_TO_CLASS[model_name] = 'bert'
 
 class LSTMTextEncoder(nn.Module):
     pool_layer_classes = {'mean': MeanPoolLayer, 'max': MaxPoolLayer}
