@@ -16,6 +16,9 @@ DECODER_DEFAULT_LR = {
     'vast_zero': 1e-3,
     'vast_few': 1e-3,
     'vast_all': 1e-3,
+    'vast_zero_sent': 1e-3,
+    'vast_few_sent': 1e-3,
+    'vast_all_sent': 1e-3,
     'obqa': 3e-4,
     'medqa_usmle': 1e-3,
 }
@@ -423,29 +426,7 @@ def eval_detail(args):
     print('dev_f1_ma {:7.4f}'.format(dev_f1_ma))
     if not save_test_preds:
         test_acc, test_pro_f1, test_con_f1, test_neu_f1, test_f1_ma = evaluate_accuracy(dataset.test(), model) if args.test_statements else 0.0
-    # else:
-    #     eval_set = dataset.test()
-    #     total_acc = []
-    #     count = 0
-    #     dt = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
-    #     preds_path = os.path.join(args.save_dir, 'test_preds_{}.csv'.format(dt))
-    #     with open(preds_path, 'w') as f_preds:
-    #         with torch.no_grad():
-    #             for qids, labels, *input_data in tqdm(eval_set):
-    #                 count += 1
-    #                 logits, _, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
-    #                 predictions = logits.argmax(1) #[bsize, ]
-    #                 preds_ranked = (-logits).argsort(1) #[bsize, n_choices]
-    #                 for i, (qid, label, pred, _preds_ranked, cids, ntype, edges, etype) in enumerate(zip(qids, labels, predictions, preds_ranked, concept_ids, node_type_ids, edge_index, edge_type)):
-    #                     acc = int(pred.item()==label.item())
-    #                     print ('{},{}'.format(qid, chr(ord('A') + pred.item())), file=f_preds)
-    #                     f_preds.flush()
-    #                     total_acc.append(acc)
-    #     test_acc = float(sum(total_acc))/len(total_acc)
 
-    #     print('-' * 71)
-    #     print('test_acc {:7.4f}'.format(test_acc))
-    #     print('-' * 71)
 
     else:
         eval_set = dataset.test()

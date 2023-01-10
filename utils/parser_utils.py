@@ -32,6 +32,27 @@ ENCODER_DEFAULT_LR = {
         'bert-large-uncased': 2e-5,
         'roberta-large': 1e-5,
     },
+    'vast_zero_sent': {
+        'lstm': 3e-4,
+        'openai-gpt': 1e-4,
+        'bert-base-uncased': 3e-5,
+        'bert-large-uncased': 2e-5,
+        'roberta-large': 1e-5,
+    },
+    'vast_few_sent': {
+        'lstm': 3e-4,
+        'openai-gpt': 1e-4,
+        'bert-base-uncased': 3e-5,
+        'bert-large-uncased': 2e-5,
+        'roberta-large': 1e-5,
+    },
+    'vast_all_sent': {
+        'lstm': 3e-4,
+        'openai-gpt': 1e-4,
+        'bert-base-uncased': 3e-5,
+        'bert-large-uncased': 2e-5,
+        'roberta-large': 1e-5,
+    },
     'obqa': {
         'lstm': 3e-4,
         'openai-gpt': 3e-5,
@@ -44,13 +65,16 @@ ENCODER_DEFAULT_LR = {
     },
 }
 
-DATASET_LIST = ['csqa', 'obqa', 'socialiqa', 'medqa_usmle','vast_zero','vast_few','vast_all']
+# DATASET_LIST = ['csqa', 'obqa', 'socialiqa', 'medqa_usmle','vast_zero','vast_few','vast_all']
 
 DATASET_SETTING = {
     'csqa': 'inhouse',
     'vast_zero': 'official',
     'vast_few': 'official',
     'vast_all': 'official',
+    'vast_zero_sent': 'official',
+    'vast_few_sent': 'official',
+    'vast_all_sent': 'official',
     'obqa': 'official',
     'socialiqa': 'official',
     'medqa_usmle': 'official',
@@ -71,7 +95,7 @@ def add_data_arguments(parser):
     # arguments that all datasets share
     parser.add_argument('--ent_emb', default=['tzw'], nargs='+', help='sources for entity embeddings')
     # dataset specific
-    parser.add_argument('-ds', '--dataset', default='csqa', choices=DATASET_LIST, help='dataset name')
+    parser.add_argument('-ds', '--dataset', default='csqa',  help='dataset name')
     parser.add_argument('-ih', '--inhouse', type=bool_flag, nargs='?', const=True, help='run in-house setting')
     parser.add_argument('--inhouse_train_qids', default='data/{dataset}/inhouse_split_qids.txt', help='qids of the in-house training set')
     # statements

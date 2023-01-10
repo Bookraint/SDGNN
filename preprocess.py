@@ -1,11 +1,10 @@
 import os
 import argparse
 from multiprocessing import cpu_count
-from utils.convert_csqa import convert_to_entailment,convert_vast
-from utils.convert_obqa import convert_to_obqa_statement
+from utils.convert_csqa import convert_vast
 from utils.conceptnet import extract_english, construct_graph
 from utils.grounding import create_matcher_patterns, ground
-from utils.graph import generate_adj_data_from_grounded_concepts__use_LM,generate_adj_data_from_grounded_concepts__use_SentBert
+from utils.graph import generate_adj_data_from_grounded_concepts__use_LM,generate_adj_data_from_grounded_concepts__use_SentBert,generate_adj_data_from_grounded_concepts
 
 input_paths = {
     'vast_zero': {
@@ -99,7 +98,12 @@ output_paths = {
             'adj-train-sent': './data/vast_zero/graph_sent/train_sent.graph.adj.pk',
             'adj-dev-sent': './data/vast_zero/graph_sent/dev_sent.graph.adj.pk',
             'adj-test-sent': './data/vast_zero/graph_sent/test_sent.graph.adj.pk',
-        }
+        },
+        'graph_without_LM': {
+            'adj-train-without-LM': './data/vast_zero/graph_without_LM/train_without_LM.graph.adj.pk',
+            'adj-dev-without-LM': './data/vast_zero/graph_without_LM/dev_without_LM.graph.adj.pk',
+            'adj-test-without-LM': './data/vast_zero/graph_without_LM/test_without_LM.graph.adj.pk',
+        },
     },
     'vast_few': {
         'statement': {
@@ -124,7 +128,12 @@ output_paths = {
             'adj-train-sent': './data/vast_few/graph_sent/train_sent.graph.adj.pk',
             'adj-dev-sent': './data/vast_few/graph_sent/dev_sent.graph.adj.pk',
             'adj-test-sent': './data/vast_few/graph_sent/test_sent.graph.adj.pk',
-        }
+        },
+        'graph_without_LM': {
+            'adj-train-without-LM': './data/vast_few/graph_without_LM/train_without_LM.graph.adj.pk',
+            'adj-dev-without-LM': './data/vast_few/graph_without_LM/dev_without_LM.graph.adj.pk',
+            'adj-test-without-LM': './data/vast_few/graph_without_LM/test_without_LM.graph.adj.pk',
+        },
     },
     'vast_all': {
         'statement': {
@@ -149,72 +158,13 @@ output_paths = {
             'adj-train-sent': './data/vast_all/graph_sent/train_sent.graph.adj.pk',
             'adj-dev-sent': './data/vast_all/graph_sent/dev_sent.graph.adj.pk',
             'adj-test-sent': './data/vast_all/graph_sent/test_sent.graph.adj.pk',
+        },
+        'graph_without_LM': {
+            'adj-train-without-LM': './data/vast_all/graph_without_LM/train_without_LM.graph.adj.pk',
+            'adj-dev-without-LM': './data/vast_all/graph_without_LM/dev_without_LM.graph.adj.pk',
+            'adj-test-without-LM': './data/vast_all/graph_without_LM/test_without_LM.graph.adj.pk',
         }
     },
-    # 'csqa': {
-    #     'statement': {
-    #         'train': './data/csqa/statement/train.statement.jsonl',
-    #         'dev': './data/csqa/statement/dev.statement.jsonl',
-    #         'test': './data/csqa/statement/test.statement.jsonl',
-    #     },
-    #     'grounded': {
-    #         'train': './data/csqa/grounded/train.grounded.jsonl',
-    #         'dev': './data/csqa/grounded/dev.grounded.jsonl',
-    #         'test': './data/csqa/grounded/test.grounded.jsonl',
-    #     },
-    #     'graph': {
-    #         'adj-train': './data/csqa/graph/train.graph.adj.pk',
-    #         'adj-dev': './data/csqa/graph/dev.graph.adj.pk',
-    #         'adj-test': './data/csqa/graph/test.graph.adj.pk',
-    #     },
-    # },
-    # 'csqa': {
-    #     'statement': {
-    #         'train': './data/csqa/statement/train.statement.jsonl',
-    #         'dev': './data/csqa/statement/dev.statement.jsonl',
-    #         'test': './data/csqa/statement/test.statement.jsonl',
-    #     },
-    #     'grounded': {
-    #         'train': './data/csqa/grounded/train.grounded.jsonl',
-    #         'dev': './data/csqa/grounded/dev.grounded.jsonl',
-    #         'test': './data/csqa/grounded/test.grounded.jsonl',
-    #     },
-    #     'graph': {
-    #         'adj-train': './data/csqa/graph/train.graph.adj.pk',
-    #         'adj-dev': './data/csqa/graph/dev.graph.adj.pk',
-    #         'adj-test': './data/csqa/graph/test.graph.adj.pk',
-    #     },
-    # },
-    # 'obqa': {
-    #     'statement': {
-    #         'train': './data/obqa/statement/train.statement.jsonl',
-    #         'dev': './data/obqa/statement/dev.statement.jsonl',
-    #         'test': './data/obqa/statement/test.statement.jsonl',
-    #         'train-fairseq': './data/obqa/fairseq/official/train.jsonl',
-    #         'dev-fairseq': './data/obqa/fairseq/official/valid.jsonl',
-    #         'test-fairseq': './data/obqa/fairseq/official/test.jsonl',
-    #     },
-    #     'grounded': {
-    #         'train': './data/obqa/grounded/train.grounded.jsonl',
-    #         'dev': './data/obqa/grounded/dev.grounded.jsonl',
-    #         'test': './data/obqa/grounded/test.grounded.jsonl',
-    #     },
-    #     'graph': {
-    #         'adj-train': './data/obqa/graph/train.graph.adj.pk',
-    #         'adj-dev': './data/obqa/graph/dev.graph.adj.pk',
-    #         'adj-test': './data/obqa/graph/test.graph.adj.pk',
-    #     },
-    # },
-    # 'obqa-fact': {
-    #     'statement': {
-    #         'train': './data/obqa/statement/train-fact.statement.jsonl',
-    #         'dev': './data/obqa/statement/dev-fact.statement.jsonl',
-    #         'test': './data/obqa/statement/test-fact.statement.jsonl',
-    #         'train-fairseq': './data/obqa/fairseq/official/train-fact.jsonl',
-    #         'dev-fairseq': './data/obqa/fairseq/official/valid-fact.jsonl',
-    #         'test-fairseq': './data/obqa/fairseq/official/test-fact.jsonl',
-    #     },
-    # },
 }
 
 
@@ -253,9 +203,12 @@ def main():
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_zero']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph']['adj-train'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_zero']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph']['adj-dev'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_zero']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph']['adj-test'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-train-sent'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-dev-sent'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-test-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-train-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-dev-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_zero']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_sent']['adj-test-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_zero']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_without_LM']['adj-train-without-LM'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_zero']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_without_LM']['adj-dev-without-LM'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_zero']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_zero']['graph_without_LM']['adj-test-without-LM'], args.nprocs)},
         ],
         'vast_few': [
             # {'func': convert_vast, 'args': (input_paths['vast_few']['train'], output_paths['vast_few']['statement']['train'])},
@@ -270,9 +223,12 @@ def main():
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_few']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph']['adj-train'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_few']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph']['adj-dev'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_few']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph']['adj-test'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-train-sent'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-dev-sent'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-test-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-train-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-dev-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_few']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_sent']['adj-test-sent'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_few']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_without_LM']['adj-train-without-LM'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_few']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_without_LM']['adj-dev-without-LM'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_few']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_few']['graph_without_LM']['adj-test-without-LM'], args.nprocs)},
         ],
         'vast_all': [
             # {'func': convert_vast, 'args': (input_paths['vast_all']['train'], output_paths['vast_all']['statement']['train'])},
@@ -287,38 +243,12 @@ def main():
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-train'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-dev'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-test'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-train-sent'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-dev-sent'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-test-sent'], args.nprocs)},
-        ],
-
-        'csqa': [
-            {'func': convert_to_entailment, 'args': (input_paths['csqa']['train'], output_paths['csqa']['statement']['train'])},
-            {'func': convert_to_entailment, 'args': (input_paths['csqa']['dev'], output_paths['csqa']['statement']['dev'])},
-            {'func': convert_to_entailment, 'args': (input_paths['csqa']['test'], output_paths['csqa']['statement']['test'])},
-            {'func': ground, 'args': (output_paths['csqa']['statement']['train'], output_paths['cpnet']['vocab'],
-                                      output_paths['cpnet']['patterns'], output_paths['csqa']['grounded']['train'], args.nprocs)},
-            {'func': ground, 'args': (output_paths['csqa']['statement']['dev'], output_paths['cpnet']['vocab'],
-                                      output_paths['cpnet']['patterns'], output_paths['csqa']['grounded']['dev'], args.nprocs)},
-            {'func': ground, 'args': (output_paths['csqa']['statement']['test'], output_paths['cpnet']['vocab'],
-                                      output_paths['cpnet']['patterns'], output_paths['csqa']['grounded']['test'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['csqa']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['csqa']['graph']['adj-train'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['csqa']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['csqa']['graph']['adj-dev'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['csqa']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['csqa']['graph']['adj-test'], args.nprocs)},
-        ],
-        'obqa': [
-            {'func': convert_to_obqa_statement, 'args': (input_paths['obqa']['train'], output_paths['obqa']['statement']['train'], output_paths['obqa']['statement']['train-fairseq'])},
-            {'func': convert_to_obqa_statement, 'args': (input_paths['obqa']['dev'], output_paths['obqa']['statement']['dev'], output_paths['obqa']['statement']['dev-fairseq'])},
-            {'func': convert_to_obqa_statement, 'args': (input_paths['obqa']['test'], output_paths['obqa']['statement']['test'], output_paths['obqa']['statement']['test-fairseq'])},
-            {'func': ground, 'args': (output_paths['obqa']['statement']['train'], output_paths['cpnet']['vocab'],
-                                      output_paths['cpnet']['patterns'], output_paths['obqa']['grounded']['train'], args.nprocs)},
-            {'func': ground, 'args': (output_paths['obqa']['statement']['dev'], output_paths['cpnet']['vocab'],
-                                      output_paths['cpnet']['patterns'], output_paths['obqa']['grounded']['dev'], args.nprocs)},
-            {'func': ground, 'args': (output_paths['obqa']['statement']['test'], output_paths['cpnet']['vocab'],
-                                      output_paths['cpnet']['patterns'], output_paths['obqa']['grounded']['test'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['obqa']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['obqa']['graph']['adj-train'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['obqa']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['obqa']['graph']['adj-dev'], args.nprocs)},
-            {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['obqa']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['obqa']['graph']['adj-test'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-train-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-dev-sent'], args.nprocs)},
+            # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-test-sent'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_without_LM']['adj-train-without-LM'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_all']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_without_LM']['adj-dev-without-LM'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts, 'args': (output_paths['vast_all']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_without_LM']['adj-test-without-LM'], args.nprocs)},
         ],
     }
 
@@ -331,4 +261,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # pass

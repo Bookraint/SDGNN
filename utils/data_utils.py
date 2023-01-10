@@ -310,7 +310,6 @@ def load_bert_xlnet_roberta_input_tensors(statement_jsonl_path, model_type, mode
             examples = []
             for line in f.readlines():
                 json_dic = json.loads(line)
-                # label = ord(json_dic["answerKey"]) - ord("A") if 'answerKey' in json_dic else 0
                 label = json_dic["answerKey"]
 
                 contexts = json_dic["question"]["stem"]
