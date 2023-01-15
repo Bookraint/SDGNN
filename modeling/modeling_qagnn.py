@@ -186,6 +186,8 @@ class QAGNN(nn.Module):
 
         concat = self.dropout_fc(torch.cat((graph_vecs, sent_vecs, Z_vecs), 1))
         logits = self.fc(concat)
+
+
         return logits, pool_attn
 
 

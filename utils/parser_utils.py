@@ -53,6 +53,27 @@ ENCODER_DEFAULT_LR = {
         'bert-large-uncased': 2e-5,
         'roberta-large': 1e-5,
     },
+    'vast_zero_without_LM': {
+        'lstm': 3e-4,
+        'openai-gpt': 1e-4,
+        'bert-base-uncased': 3e-5,
+        'bert-large-uncased': 2e-5,
+        'roberta-large': 1e-5,
+    },
+    'vast_few_without_LM': {
+        'lstm': 3e-4,
+        'openai-gpt': 1e-4,
+        'bert-base-uncased': 3e-5,
+        'bert-large-uncased': 2e-5,
+        'roberta-large': 1e-5,
+    },
+    'vast_all_without_LM': {
+        'lstm': 3e-4,
+        'openai-gpt': 1e-4,
+        'bert-base-uncased': 3e-5,
+        'bert-large-uncased': 2e-5,
+        'roberta-large': 1e-5,
+    },
     'obqa': {
         'lstm': 3e-4,
         'openai-gpt': 3e-5,
@@ -75,6 +96,9 @@ DATASET_SETTING = {
     'vast_zero_sent': 'official',
     'vast_few_sent': 'official',
     'vast_all_sent': 'official',
+    'vast_zero_without_LM': 'official',
+    'vast_few_without_LM': 'official',
+    'vast_all_without_LM': 'official',
     'obqa': 'official',
     'socialiqa': 'official',
     'medqa_usmle': 'official',
@@ -104,6 +128,7 @@ def add_data_arguments(parser):
     parser.add_argument('--test_statements', default='data/{dataset}/statement/test.statement.jsonl')
     # preprocessing options
     parser.add_argument('-sl', '--max_seq_len', default=100, type=int)
+    
     # set dataset defaults
     args, _ = parser.parse_known_args()
     parser.set_defaults(ent_emb_paths=[EMB_PATHS.get(s) for s in args.ent_emb],

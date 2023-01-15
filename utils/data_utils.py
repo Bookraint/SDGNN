@@ -99,7 +99,10 @@ def load_sparse_adj_data_with_contextnode(adj_pk_path, max_node_num, num_choice,
 
         adj_lengths_ori = adj_lengths.clone()
         for idx, _data in tqdm(enumerate(adj_concept_pairs), total=n_samples, desc='loading adj matrices'):
-            adj, concepts, qm, am, cid2score = _data['adj'], _data['concepts'], _data['qmask'], _data['amask'], _data['cid2score']
+            if args.nocid2score:
+                adj, concepts, qm, am, cid2score = _data[0], _data[1], _data[2], _data[3], None
+            else:
+                adj, concepts, qm, am, cid2score = _data['adj'], _data['concepts'], _data['qmask'], _data['amask'], _data['cid2score']
             #adj: e.g. <4233x249 (n_nodes*half_n_rels x n_nodes) sparse matrix of type '<class 'numpy.bool'>' with 2905 stored elements in COOrdinate format>
             #concepts: np.array(num_nodes, ), where entry is concept id
             #qm: np.array(num_nodes, ), where entry is True/False

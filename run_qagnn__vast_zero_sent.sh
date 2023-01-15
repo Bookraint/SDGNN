@@ -11,8 +11,8 @@ shift
 args=$@
 
 
-elr="1e-4"
-dlr="1e-2"
+elr="2e-5"
+dlr="2e-3"
 bs=64
 mbs=2
 n_epochs=40

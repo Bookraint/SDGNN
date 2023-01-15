@@ -240,7 +240,7 @@ def main():
             #                           output_paths['cpnet']['patterns'], output_paths['vast_all']['grounded']['dev'], args.nprocs)},
             # {'func': ground, 'args': (output_paths['vast_all']['statement']['test'], output_paths['cpnet']['vocab'],
             #                           output_paths['cpnet']['patterns'], output_paths['vast_all']['grounded']['test'], args.nprocs)},
-            # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-train'], args.nprocs)},
+            {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-train'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['dev'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-dev'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_LM, 'args': (output_paths['vast_all']['grounded']['test'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph']['adj-test'], args.nprocs)},
             # {'func': generate_adj_data_from_grounded_concepts__use_SentBert, 'args': (output_paths['vast_all']['grounded']['train'], output_paths['cpnet']['pruned-graph'], output_paths['cpnet']['vocab'], output_paths['vast_all']['graph_sent']['adj-train-sent'], args.nprocs)},

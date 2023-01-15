@@ -19,6 +19,9 @@ DECODER_DEFAULT_LR = {
     'vast_zero_sent': 1e-3,
     'vast_few_sent': 1e-3,
     'vast_all_sent': 1e-3,
+    'vast_zero_without_LM': 1e-3,
+    'vast_few_without_LM': 1e-3,
+    'vast_all_without_LM': 1e-3,
     'obqa': 3e-4,
     'medqa_usmle': 1e-3,
 }
@@ -59,6 +62,7 @@ def main():
     parser.add_argument('--mode', default='train', choices=['train', 'eval_detail'], help='run training or evaluation')
     parser.add_argument('--save_dir', default=f'./saved_models/qagnn/', help='model output directory')
     parser.add_argument('--save_model', dest='save_model', action='store_true')
+    parser.add_argument('--nocid2score', dest='nocid2score', action='store_true')
     parser.add_argument('--load_model_path', default=None)
 
 

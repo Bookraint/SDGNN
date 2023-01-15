@@ -4,18 +4,18 @@ export CUDA_VISIBLE_DEVICES=0,1
 dt=`date '+%Y%m%d_%H%M%S'`
 
 
-dataset="vast_few"
-model='SentiX_Base_Model'
+dataset="vast_zero_without_LM"
+model='roberta-large'
 shift
 shift
 args=$@
 
 
-elr="2e-5"
-dlr="2e-3"
+elr="1e-5"
+dlr="1e-3"
 bs=64
 mbs=2
-n_epochs=40
+n_epochs=15
 num_relation=38 #(17 +2) * 2: originally 17, add 2 relation types (QA context -> Q node; QA context -> A node), and double because we add reverse edges
 
 
@@ -47,6 +47,7 @@ for seed in 0; do
       --dev_statements  data/${dataset}/statement/dev.statement.jsonl \
       --test_statements  data/${dataset}/statement/test.statement.jsonl \
       --save_model \
+      --nocid2score \
       --save_dir ${save_dir_pref}/${dataset}/enc-${model}__k${k}__gnndim${gnndim}__bs${bs}__seed${seed}__${dt} $args \
   > logs/train_${dataset}__enc-${model}__k${k}__gnndim${gnndim}__bs${bs}__seed${seed}__${dt}.log.txt
 done
