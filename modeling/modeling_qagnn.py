@@ -120,13 +120,17 @@ class QAGNN(nn.Module):
         self.pooler = MultiheadAttPoolLayer(n_attention_head, sent_dim, concept_dim)
 
         self.fc = MLP(concept_dim + sent_dim + concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+        #only graphvec
+        self.fc2 = MLP(concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+        #only LM vec
+        self.fc1 = MLP(sent_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
 
         self.dropout_e = nn.Dropout(p_emb)
-        self.dropout_fc = nn.Dropout(p_fc)
+        self.dropout_fc = nn.Dropout(p_fc)\
 
         if init_range > 0:
             self.apply(self._init_weights)
-
+        self.output_mode = args.output_mode
 
     def _init_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -184,8 +188,16 @@ class QAGNN(nn.Module):
             self.adj = adj
             self.pool_attn = pool_attn
 
-        concat = self.dropout_fc(torch.cat((graph_vecs, sent_vecs, Z_vecs), 1))
-        logits = self.fc(concat)
+        if self.output_mode == 3:
+            concat = self.dropout_fc(torch.cat((graph_vecs, sent_vecs, Z_vecs), 1))
+            logits = self.fc(concat)
+        elif self.output_mode == 2: #only graph vec
+            concat = self.dropout_fc(graph_vecs)
+            logits = self.fc2(concat)
+        elif self.output_mode == 1: #only sentvec
+            concat = self.dropout_fc(sent_vecs)
+            logits = self.fc1(concat)
+        
 
 
         return logits, pool_attn
@@ -204,7 +216,7 @@ class LM_QAGNN(nn.Module):
                                         fc_dim, n_fc_layer, p_emb, p_gnn, p_fc,
                                         pretrained_concept_emb=pretrained_concept_emb, freeze_ent_emb=freeze_ent_emb,
                                         init_range=init_range)
-
+        
 
     def forward(self, *inputs, layer_id=-1, cache_output=False, detail=False):
         """

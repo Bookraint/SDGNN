@@ -84,6 +84,7 @@ def main():
     parser.add_argument('--max_node_num', default=200, type=int)
     parser.add_argument('--simple', default=False, type=bool_flag, nargs='?', const=True)
     parser.add_argument('--subsample', default=1.0, type=float)
+    parser.add_argument('--output_mode', default=3, type=int)
     parser.add_argument('--init_range', default=0.02, type=float, help='stddev when initializing with normal distribution')
 
 

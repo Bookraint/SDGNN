@@ -4,7 +4,7 @@ export CUDA_VISIBLE_DEVICES=0,1
 dt=`date '+%Y%m%d_%H%M%S'`
 
 
-dataset="vast_zero_sent"
+dataset="vast_few_sent"
 model='roberta-large'
 shift
 shift
@@ -15,7 +15,7 @@ elr="1e-5"
 dlr="1e-3"
 bs=64
 mbs=2
-n_epochs=30
+n_epochs=15
 num_relation=38 #(17 +2) * 2: originally 17, add 2 relation types (QA context -> Q node; QA context -> A node), and double because we add reverse edges
 
 
@@ -46,6 +46,7 @@ for seed in 0; do
       --train_statements  data/${dataset}/statement/train.statement.jsonl \
       --dev_statements  data/${dataset}/statement/dev.statement.jsonl \
       --test_statements  data/${dataset}/statement/test.statement.jsonl \
+      --output_mode 2 \
       --save_model \
       --save_dir ${save_dir_pref}/${dataset}/enc-${model}__k${k}__gnndim${gnndim}__bs${bs}__seed${seed}__${dt} $args \
   > logs/train_${dataset}__enc-${model}__k${k}__gnndim${gnndim}__bs${bs}__seed${seed}__${dt}.log.txt
