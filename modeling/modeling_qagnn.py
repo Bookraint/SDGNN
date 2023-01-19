@@ -103,6 +103,10 @@ class QAGNN(nn.Module):
                  pretrained_concept_emb=None, freeze_ent_emb=True,
                  init_range=0.02):
         super().__init__()
+        try:
+            self.output_mode = args.output_mode
+        except:
+            self.output_mode = 3
         self.init_range = init_range
 
         self.concept_emb = CustomizedEmbedding(concept_num=n_concept, concept_out_dim=concept_dim,
@@ -120,17 +124,18 @@ class QAGNN(nn.Module):
         self.pooler = MultiheadAttPoolLayer(n_attention_head, sent_dim, concept_dim)
 
         self.fc = MLP(concept_dim + sent_dim + concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
-        #only graphvec
-        self.fc2 = MLP(concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
-        #only LM vec
-        self.fc1 = MLP(sent_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+        if self.output_mode != 3:
+            #only graphvec
+            self.fc2 = MLP(concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+            #only LM vec
+            self.fc1 = MLP(sent_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
 
         self.dropout_e = nn.Dropout(p_emb)
         self.dropout_fc = nn.Dropout(p_fc)\
 
         if init_range > 0:
             self.apply(self._init_weights)
-        self.output_mode = args.output_mode
+
 
     def _init_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):

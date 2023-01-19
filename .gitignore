@@ -6,3 +6,5 @@ logs
 data*
 saved*
 *tar.gz
+*zip
+SentiX_Base_Model

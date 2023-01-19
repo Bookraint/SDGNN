@@ -1,3 +1,4 @@
+import numpy as np
 import random
 
 try:
@@ -63,6 +64,7 @@ def main():
     parser.add_argument('--save_dir', default=f'./saved_models/qagnn/', help='model output directory')
     parser.add_argument('--save_model', dest='save_model', action='store_true')
     parser.add_argument('--nocid2score', dest='nocid2score', action='store_true')
+    parser.add_argument('--save_attn', dest='save_attn', action='store_true')
     parser.add_argument('--load_model_path', default=None)
 
 
@@ -371,6 +373,7 @@ def train(args):
 def eval_detail(args):
     assert args.load_model_path is not None
     model_path = args.load_model_path
+    
 
     cp_emb = [np.load(path) for path in args.ent_emb_paths]
     cp_emb = torch.tensor(np.concatenate(cp_emb, 1), dtype=torch.float)
@@ -440,18 +443,24 @@ def eval_detail(args):
         dt = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
         preds_path = os.path.join(args.save_dir, 'test_preds_{}.csv'.format(dt))
         y_label,y_pred = [],[]
+        attn_path = os.path.join(args.save_dir, 'test_attn_{}.npy'.format(dt))
+        cid_path = os.path.join(args.save_dir, 'test_cid_{}.npy'.format(dt))
+        attn_to_save = []
+        cid_to_save = []
         with open(preds_path, 'w') as f_preds:
             with torch.no_grad():
                 for qids, labels, *input_data in tqdm(eval_set):
                     count += 1
-                    logits, _, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
+                    logits, attn, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
+                    attn_to_save.append(attn.cpu().detach().numpy())
+                    cid_to_save.append(concept_ids.cpu().detach().numpy())
                     predictions = logits.argmax(1) #[bsize, ]
                     preds_ranked = (-logits).argsort(1) #[bsize, n_choices]
                     for i, (qid, label, pred, _preds_ranked, cids, ntype, edges, etype) in enumerate(zip(qids, labels, predictions, preds_ranked, concept_ids, node_type_ids, edge_index, edge_type)):
                         acc = int(pred.item()==label.item())
                         y_label.append(label.item())
                         y_pred.append(pred.item())
-                        # print ('{},{}'.format(qid, chr(ord('A') + pred.item())), file=f_preds)
+                        
                         print ('{},{},{}'.format(qid, str(pred.item()),str(label.item())), file=f_preds)
                         f_preds.flush()
                         total_acc.append(acc)
@@ -460,6 +469,11 @@ def eval_detail(args):
         test_con_f1 = f1_score(y_label,y_pred,labels=[0],average="macro")
         test_neu_f1 = f1_score(y_label,y_pred,labels=[2],average="macro")
         test_f1_ma = f1_score(y_label,y_pred,labels=list(range(3)),average="macro")
+        
+        if args.save_attn:
+            np.save(attn_path,attn_to_save)
+            np.save(cid_path,cid_to_save)
+
 
     print('-' * 71)
     print('| dev_acc {:7.4f} | test_acc {:7.4f} | test_pro_f1 {:7.4f} | test_con_f1 {:7.4f} | test_neu_f1 {:7.4f} | test_ma_f1 {:7.4f} |'.format(dev_acc, test_acc, test_pro_f1, test_con_f1, test_neu_f1, test_f1_ma))
