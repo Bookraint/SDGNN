@@ -131,7 +131,7 @@ class QAGNN(nn.Module):
             self.fc1 = MLP(sent_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
 
         self.dropout_e = nn.Dropout(p_emb)
-        self.dropout_fc = nn.Dropout(p_fc)\
+        self.dropout_fc = nn.Dropout(p_fc)
 
         if init_range > 0:
             self.apply(self._init_weights)
