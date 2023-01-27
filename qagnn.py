@@ -64,6 +64,8 @@ def main():
     parser.add_argument('--save_dir', default=f'./saved_models/qagnn/', help='model output directory')
     parser.add_argument('--save_model', dest='save_model', action='store_true')
     parser.add_argument('--nocid2score', dest='nocid2score', action='store_true')
+    parser.add_argument('--wonodetype', dest='wonodetype', action='store_true')
+    parser.add_argument('--woedgetype', dest='woedgetype', action='store_true')
     parser.add_argument('--save_attn', dest='save_attn', action='store_true')
     parser.add_argument('--load_model_path', default=None)
 
@@ -443,10 +445,18 @@ def eval_detail(args):
         dt = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
         preds_path = os.path.join(args.save_dir, 'test_preds_{}.csv'.format(dt))
         y_label,y_pred = [],[]
-        attn_path = os.path.join(args.save_dir, 'test_attn_{}.npy'.format(dt))
-        cid_path = os.path.join(args.save_dir, 'test_cid_{}.npy'.format(dt))
+        attn_path = os.path.join(args.save_dir,'feature', 'test_attn_{}.npy'.format(dt))
+        cid_path = os.path.join(args.save_dir,'feature', 'test_cid_{}.npy'.format(dt))
+        edge_index_path = os.path.join(args.save_dir,'feature', 'test_edge_index_{}.npy'.format(dt))
+        edge_type_path = os.path.join(args.save_dir,'feature', 'test_edge_type_{}.npy'.format(dt))
+        node_type_ids_path = os.path.join(args.save_dir,'feature', 'test_node_type_{}.npy'.format(dt))
+        qid_path = os.path.join(args.save_dir,'feature', 'test_qid_{}.npy'.format(dt))
         attn_to_save = []
         cid_to_save = []
+        node_type_ids_to_save = []
+        edge_index_to_save =[]
+        edge_type_to_save =[]
+        qid_to_save = []
         with open(preds_path, 'w') as f_preds:
             with torch.no_grad():
                 for qids, labels, *input_data in tqdm(eval_set):
@@ -454,6 +464,10 @@ def eval_detail(args):
                     logits, attn, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
                     attn_to_save.append(attn.cpu().detach().numpy())
                     cid_to_save.append(concept_ids.cpu().detach().numpy())
+                    edge_index_to_save.append(edge_index)
+                    edge_type_to_save.append(edge_type)
+                    node_type_ids_to_save.append(node_type_ids)
+                    qid_to_save.append(qids)
                     predictions = logits.argmax(1) #[bsize, ]
                     preds_ranked = (-logits).argsort(1) #[bsize, n_choices]
                     for i, (qid, label, pred, _preds_ranked, cids, ntype, edges, etype) in enumerate(zip(qids, labels, predictions, preds_ranked, concept_ids, node_type_ids, edge_index, edge_type)):
@@ -473,6 +487,10 @@ def eval_detail(args):
         if args.save_attn:
             np.save(attn_path,attn_to_save)
             np.save(cid_path,cid_to_save)
+            np.save(edge_index_path,edge_index_to_save)
+            np.save(edge_type_path,edge_type_to_save)
+            np.save(node_type_ids_path,node_type_ids_to_save)
+            np.save(qid_path,qid_to_save)
 
 
     print('-' * 71)

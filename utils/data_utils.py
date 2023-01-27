@@ -144,6 +144,7 @@ def load_sparse_adj_data_with_contextnode(adj_pk_path, max_node_num, num_choice,
             n_node = adj.shape[1]
             half_n_rel = adj.shape[0] // n_node
             i, j = ij // n_node, ij % n_node
+            # i->rel_idx j->node_idx
 
             #Prepare edges
             i += 2; j += 1; k += 1  # **** increment coordinate by 1, rel_id by 2 ****
@@ -176,7 +177,11 @@ def load_sparse_adj_data_with_contextnode(adj_pk_path, max_node_num, num_choice,
             i, j, k = i[mask], j[mask], k[mask]
             i, j, k = torch.cat((i, i + half_n_rel), 0), torch.cat((j, k), 0), torch.cat((k, j), 0)  # add inverse relations
             edge_index.append(torch.stack([j,k], dim=0)) #each entry is [2, E]
-            edge_type.append(i) #each entry is [E, ]
+             #each entry is [E, ]
+            if args.woedgetype:
+                edge_type.append(torch.zeros_like(i))
+            else:
+                edge_type.append(i)
 
         with open(cache_path, 'wb') as f:
             pickle.dump([adj_lengths_ori, concept_ids, node_type_ids, node_scores, adj_lengths, edge_index, edge_type, half_n_rel], f)
@@ -197,6 +202,9 @@ def load_sparse_adj_data_with_contextnode(adj_pk_path, max_node_num, num_choice,
     #node_type_ids: (n_questions, num_choice, max_node_num)
     #node_scores: (n_questions, num_choice, max_node_num)
     #adj_lengths: (n_questions,　num_choice)
+    if args.wonodetype:
+        node_type_ids = torch.zeros_like(node_type_ids)
+
     return concept_ids, node_type_ids, node_scores, adj_lengths, (edge_index, edge_type) #, half_n_rel * 2 + 1
 
 
