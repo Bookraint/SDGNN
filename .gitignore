@@ -2,7 +2,10 @@
 
 .ipynb_checkpoints
 
-logs
+twitter_data_naacl
+bash_old/
+*txt
+log*
 data*
 saved*
 *tar.gz

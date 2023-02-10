@@ -299,11 +299,11 @@ class RobertaForMaskedLMwithLossSent(RobertaForMaskedLM):
             # (masked_lm_loss), prediction_scores, sequence_output, (hidden_states), (attentions)
         return outputs
 
-# print ('loading pre-trained LM...')
-# TOKENIZER = RobertaTokenizer.from_pretrained('roberta-large')
-# LM_MODEL = RobertaForMaskedLMwithLoss.from_pretrained('roberta-large')
-# LM_MODEL.cuda(); LM_MODEL.eval()
-# print ('loading done')
+print ('loading pre-trained LM...')
+TOKENIZER = RobertaTokenizer.from_pretrained('roberta-large')
+LM_MODEL = RobertaForMaskedLMwithLoss.from_pretrained('roberta-large')
+LM_MODEL.cuda(); LM_MODEL.eval()
+print ('loading done')
 
 print ('loading SentiBert...')
 St_TOKENIZER = BertTokenizer.from_pretrained('/home/yjx/ZSSD/qagnn-main/SentiX_Base_Model')
@@ -397,6 +397,11 @@ def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part1(data):
 def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part2_sent(data):
     qc_ids, ac_ids, question, extra_nodes = data
     cid2score = get_Senti_score(qc_ids+ac_ids+extra_nodes, question)
+    return (qc_ids, ac_ids, question, extra_nodes, cid2score)
+
+def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part2(data):
+    qc_ids, ac_ids, question, extra_nodes = data
+    cid2score = get_LM_score(qc_ids+ac_ids+extra_nodes, question)
     return (qc_ids, ac_ids, question, extra_nodes, cid2score)
 
 def concepts_to_adj_matrices_2hop_all_pair__use_LM__Part3(data):

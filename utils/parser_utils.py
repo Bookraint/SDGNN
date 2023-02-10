@@ -74,6 +74,13 @@ ENCODER_DEFAULT_LR = {
         'bert-large-uncased': 2e-5,
         'roberta-large': 1e-5,
     },
+    'test_A': {
+        'lstm': 3e-4,
+        'openai-gpt': 1e-4,
+        'bert-base-uncased': 3e-5,
+        'bert-large-uncased': 2e-5,
+        'roberta-large': 1e-5,
+    },
     'obqa': {
         'lstm': 3e-4,
         'openai-gpt': 3e-5,
@@ -99,6 +106,7 @@ DATASET_SETTING = {
     'vast_zero_without_LM': 'official',
     'vast_few_without_LM': 'official',
     'vast_all_without_LM': 'official',
+    'test_A': 'official',
     'obqa': 'official',
     'socialiqa': 'official',
     'medqa_usmle': 'official',
@@ -145,6 +153,7 @@ def add_data_arguments(parser):
 
 def add_encoder_arguments(parser):
     parser.add_argument('-enc', '--encoder', default='bert-large-uncased', help='encoder type')
+    parser.add_argument('-enc_fix', '--encoder_fix', default='bert-large-uncased', help='encoder type')
     parser.add_argument('--encoder_layer', default=-1, type=int, help='encoder layer ID to use as features (used only by non-LSTM encoders)')
     parser.add_argument('-elr', '--encoder_lr', default=2e-5, type=float, help='learning rate')
     args, _ = parser.parse_known_args()

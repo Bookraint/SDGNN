@@ -10,6 +10,7 @@ from modeling.modeling_qagnn import *
 from utils.optimization_utils import OPTIMIZER_CLASSES
 from utils.parser_utils import *
 from sklearn.metrics import f1_score
+from utils.utils import Stance_loss
 
 
 DECODER_DEFAULT_LR = {
@@ -23,6 +24,7 @@ DECODER_DEFAULT_LR = {
     'vast_zero_without_LM': 1e-3,
     'vast_few_without_LM': 1e-3,
     'vast_all_without_LM': 1e-3,
+    'test_A': 1e-3,
     'obqa': 3e-4,
     'medqa_usmle': 1e-3,
 }
@@ -44,7 +46,7 @@ def evaluate_accuracy(eval_set, model):
     y_label,y_pred = [],[]
     with torch.no_grad():
         for qids, labels, *input_data in tqdm(eval_set):
-            logits, _ = model(*input_data)
+            logits,features, _ = model(*input_data)
             y_pred += logits.argmax(1).cpu().numpy().tolist()
             y_label += labels.cpu().numpy().tolist()
             n_correct += (logits.argmax(1) == labels).sum().item()
@@ -63,6 +65,7 @@ def main():
     parser.add_argument('--mode', default='train', choices=['train', 'eval_detail'], help='run training or evaluation')
     parser.add_argument('--save_dir', default=f'./saved_models/qagnn/', help='model output directory')
     parser.add_argument('--save_model', dest='save_model', action='store_true')
+    parser.add_argument('--scl_loss', dest='scl_loss', action='store_true')
     parser.add_argument('--nocid2score', dest='nocid2score', action='store_true')
     parser.add_argument('--wonodetype', dest='wonodetype', action='store_true')
     parser.add_argument('--woedgetype', dest='woedgetype', action='store_true')
@@ -96,6 +99,7 @@ def main():
     parser.add_argument('--dropouti', type=float, default=0.2, help='dropout for embedding layer')
     parser.add_argument('--dropoutg', type=float, default=0.2, help='dropout for GNN layers')
     parser.add_argument('--dropoutf', type=float, default=0.2, help='dropout for fully-connected layers')
+    parser.add_argument('--scl_loss_weight', type=float, default=1.0)
 
     # optimization
     parser.add_argument('-dlr', '--decoder_lr', default=DECODER_DEFAULT_LR[args.dataset], type=float, help='learning rate')
@@ -190,11 +194,13 @@ def train(args):
             model.load_state_dict(model_state_dict)
 
         model.encoder.to(device0)
+        model.encoder_fix.to(device0)
         model.decoder.to(device1)
 
 
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-
+    for n, p in model.encoder_fix.named_parameters():
+        p.requires_grad = False
     grouped_parameters = [
         {'params': [p for n, p in model.encoder.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay, 'lr': args.encoder_lr},
         {'params': [p for n, p in model.encoder.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0, 'lr': args.encoder_lr},
@@ -233,6 +239,7 @@ def train(args):
         loss_func = nn.MarginRankingLoss(margin=0.1, reduction='mean')
     elif args.loss == 'cross_entropy':
         loss_func = nn.CrossEntropyLoss(reduction='mean')
+    scl_loss_func = Stance_loss(0.07).to(device0)
 
     def compute_loss(logits, labels):
         if args.loss == 'margin_rank':
@@ -277,11 +284,13 @@ def train(args):
                     b = min(a + args.mini_batch_size, bs)
                     if args.fp16:
                         with torch.cuda.amp.autocast():
-                            logits, _ = model(*[x[a:b] for x in input_data], layer_id=args.encoder_layer)
+                            logits,features, _ = model(*[x[a:b] for x in input_data], layer_id=args.encoder_layer)
                             loss = compute_loss(logits, labels[a:b])
                     else:
-                        logits, _ = model(*[x[a:b] for x in input_data], layer_id=args.encoder_layer)
+                        logits, features, _ = model(*[x[a:b] for x in input_data], layer_id=args.encoder_layer)
                         loss = compute_loss(logits, labels[a:b])
+                    if args.scl_loss:
+                        loss += args.scl_loss_weight*scl_loss_func(features, labels[a:b])
                     loss = loss * (b - a) / bs
                     if args.fp16:
                         scaler.scale(loss).backward()
@@ -324,7 +333,7 @@ def train(args):
                     with torch.no_grad():
                         for qids, labels, *input_data in tqdm(eval_set):
                             count += 1
-                            logits, _, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
+                            logits,features, _, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
                             predictions = logits.argmax(1) #[bsize, ]
                             preds_ranked = (-logits).argsort(1) #[bsize, n_choices]
                             for i, (qid, label, pred, _preds_ranked, cids, ntype, edges, etype) in enumerate(zip(qids, labels, predictions, preds_ranked, concept_ids, node_type_ids, edge_index, edge_type)):
@@ -403,6 +412,7 @@ def eval_detail(args):
         device0 = torch.device("cpu")
         device1 = torch.device("cpu")
     model.encoder.to(device0)
+    model.encoder_fix.to(device0)
     model.decoder.to(device1)
     model.eval()
 
@@ -461,7 +471,7 @@ def eval_detail(args):
             with torch.no_grad():
                 for qids, labels, *input_data in tqdm(eval_set):
                     count += 1
-                    logits, attn, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
+                    logits,features, attn, concept_ids, node_type_ids, edge_index, edge_type = model(*input_data, detail=True)
                     attn_to_save.append(attn.cpu().detach().numpy())
                     cid_to_save.append(concept_ids.cpu().detach().numpy())
                     edge_index_to_save.append(edge_index)

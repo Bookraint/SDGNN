@@ -2,7 +2,8 @@ from modeling.modeling_encoder import TextEncoder, MODEL_NAME_TO_CLASS
 from utils.data_utils import *
 from utils.layers import *
 import torch.nn.functional as F
-
+from utils.utils import Stance_loss
+import faiss
 
 class QAGNN_Message_Passing(nn.Module):
     def __init__(self, args, k, n_ntype, n_etype, input_size, hidden_size, output_size,
@@ -124,11 +125,14 @@ class QAGNN(nn.Module):
         self.pooler = MultiheadAttPoolLayer(n_attention_head, sent_dim, concept_dim)
 
         self.fc = MLP(concept_dim + sent_dim + concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+        self.fc2f = MLP(concept_dim + sent_dim + concept_dim, fc_dim, 200, n_fc_layer, p_fc, layer_norm=True)
         if self.output_mode != 3:
             #only graphvec
-            self.fc2 = MLP(concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+            self.fc2 = MLP(sent_dim + concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
             #only LM vec
-            self.fc1 = MLP(sent_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+            self.fc1 = MLP(concept_dim + concept_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+            self.fc0 = MLP(concept_dim + sent_dim, fc_dim, 3, n_fc_layer, p_fc, layer_norm=True)
+            
 
         self.dropout_e = nn.Dropout(p_emb)
         self.dropout_fc = nn.Dropout(p_fc)
@@ -147,7 +151,7 @@ class QAGNN(nn.Module):
             module.weight.data.fill_(1.0)
 
 
-    def forward(self, sent_vecs, concept_ids, node_type_ids, node_scores, adj_lengths, adj, emb_data=None, cache_output=False):
+    def forward(self, sent_vecs,sent_vecs_fix, concept_ids, node_type_ids, node_scores, adj_lengths, adj, emb_data=None, cache_output=False):
         """
         sent_vecs: (batch_size, dim_sent)
         concept_ids: (batch_size, n_node)
@@ -193,19 +197,26 @@ class QAGNN(nn.Module):
             self.adj = adj
             self.pool_attn = pool_attn
 
+        if self.output_mode == 4:
+            concat = self.dropout_fc(torch.cat((graph_vecs, sent_vecs_fix, Z_vecs), 1))
+            logits = self.fc(concat)
         if self.output_mode == 3:
             concat = self.dropout_fc(torch.cat((graph_vecs, sent_vecs, Z_vecs), 1))
             logits = self.fc(concat)
-        elif self.output_mode == 2: #only graph vec
-            concat = self.dropout_fc(graph_vecs)
+        elif self.output_mode == 2: #rm graph vec
+            concat = self.dropout_fc(torch.cat((sent_vecs, Z_vecs), 1))
             logits = self.fc2(concat)
-        elif self.output_mode == 1: #only sentvec
-            concat = self.dropout_fc(sent_vecs)
+        elif self.output_mode == 1: #rm sentvec
+            concat = self.dropout_fc(torch.cat((graph_vecs, Z_vecs), 1))
             logits = self.fc1(concat)
+        elif self.output_mode == 0: #rm Z_vecs
+            concat =self.dropout_fc(torch.cat((graph_vecs, sent_vecs), 1))
+            logits = self.fc0(concat)
         
+        features = self.fc2f(concat)
+        features = F.normalize(features, dim=1)
 
-
-        return logits, pool_attn
+        return logits, pool_attn, features
 
 
 class LM_QAGNN(nn.Module):
@@ -216,12 +227,137 @@ class LM_QAGNN(nn.Module):
                  init_range=0.0, encoder_config={}):
         super().__init__()
         self.encoder = TextEncoder(model_name, **encoder_config)
+        self.encoder_fix = TextEncoder(args.encoder_fix, **encoder_config)
         self.decoder = QAGNN(args, k, n_ntype, n_etype, self.encoder.sent_dim,
                                         n_concept, concept_dim, concept_in_dim, n_attention_head,
                                         fc_dim, n_fc_layer, p_emb, p_gnn, p_fc,
                                         pretrained_concept_emb=pretrained_concept_emb, freeze_ent_emb=freeze_ent_emb,
                                         init_range=init_range)
+
+    def compute_features(self,train_loader):
+        print('Computing features...')
+        self.encoder.eval()
+        features = torch.zeros(len(train_loader.train_size()),??self.bert_dim).cuda()
         
+        for qids, labels, *input_data in train_loader.train():
+            with torch.no_grad():
+                bs = labels.size(0)
+                for a in range(0, bs, args.mini_batch_size):
+                    b = min(a + args.mini_batch_size, bs)
+                    if args.fp16:
+                        with torch.cuda.amp.autocast():
+                            logits,features, _ = model(*[x[a:b] for x in input_data], layer_id=args.encoder_layer)
+                            # loss = compute_loss(logits, labels[a:b])
+                    else:
+                        logits, features, _ = model(*[x[a:b] for x in input_data], layer_id=args.encoder_layer)
+                        # loss = compute_loss(logits, labels[a:b])
+
+
+
+        for  batch in tqdm(train_loader):
+            input_features = [batch[feat_name].to(self.device) for feat_name in self.input_features]
+            index = batch['index']
+            with torch.no_grad():
+                feature = self.encoder(input_features)
+                feature = feature.squeeze(dim=1)
+                features[index] = feature
+        self.encoder.train()
+        return features.cpu()        
+
+    def run_kmeans(self, x):
+        """
+        Args:
+            x: data to be clustered
+        """
+
+        print('performing kmeans clustering')
+        results = {'im2cluster':[],'centroids':[],'density':[]}
+
+        for seed, num_cluster in enumerate(self.num_cluster):
+            # intialize faiss clustering parameters
+            d = x.shape[1]
+            k = int(num_cluster)
+            clus = faiss.Clustering(d, k)
+            clus.verbose = True
+            clus.niter = 20
+            clus.nredo = 5
+            clus.seed = seed
+            clus.max_points_per_centroid = 1000
+            clus.min_points_per_centroid = 10
+
+            res = faiss.StandardGpuResources()
+            cfg = faiss.GpuIndexFlatConfig()
+            cfg.useFloat16 = False
+            cfg.device = gpu_id
+            index = faiss.GpuIndexFlatL2(res, d, cfg)
+
+            clus.train(x, index)
+
+            D, I = index.search(x, 1) # for each sample, find cluster distance and assignments
+            im2cluster = [int(n[0]) for n in I]
+
+            # get cluster centroids
+            centroids = faiss.vector_to_array(clus.centroids).reshape(k,d)
+
+            # sample-to-centroid distances for each cluster
+            Dcluster = [[] for c in range(k)]
+            for im,i in enumerate(im2cluster):
+                Dcluster[i].append(D[im][0])
+
+            # concentration estimation (phi)
+            density = np.zeros(k)
+            for i,dist in enumerate(Dcluster):
+                if len(dist)>1:
+                    d = (np.asarray(dist)**0.5).mean()/np.log(len(dist)+10)
+                    density[i] = d
+
+                    #if cluster only has one point, use the max to estimate its concentration
+            dmax = density.max()
+            for i,dist in enumerate(Dcluster):
+                if len(dist)<=1:
+                    density[i] = dmax
+
+            density = density.clip(np.percentile(density,10),np.percentile(density,90)) #clamp extreme values for stability
+            density = self.temperature*density/density.mean()  #scale the mean to temperature
+
+            # convert to cuda Tensors for broadcast
+            centroids = torch.Tensor(centroids).cuda()
+            centroids = torch.nn.functional.normalize(centroids, p=2, dim=1)
+
+            im2cluster = torch.LongTensor(im2cluster).cuda()
+            density = torch.Tensor(density).cuda()
+
+            results['centroids'].append(centroids)
+            results['density'].append(density)
+            results['im2cluster'].append(im2cluster)
+
+        return results
+
+    def run_prototype(self,train_loader,i_epoch):
+        # ----------------------- Run-Kmeans -----------------------
+
+        self.warmup_epoch = 0
+        self.num_cluster = [100]
+        cluster_result = None
+
+        # compute momentum features for center-cropped images
+        features = self.compute_features(train_loader)
+        # pickle.dump(features, open('try_features.dat', 'wb'))
+        # features = pickle.load(open('try_features.dat', 'rb'))
+
+        # placeholder for clustering result
+        cluster_result = {'im2cluster':[],'centroids':[],'density':[]}
+        for num_cluster in self.num_cluster:
+            cluster_result['im2cluster'].append(torch.zeros(len(train_loader.dataset),dtype=torch.long).cuda())
+            cluster_result['centroids'].append(torch.zeros(int(num_cluster),self.bert_dim).cuda())
+            cluster_result['density'].append(torch.zeros(int(num_cluster)).cuda())
+
+        features = features.numpy()
+        cluster_result = self.run_kmeans(features)  # run kmeans clustering on master node
+        # save the clustering result
+        # torch.save(cluster_result,os.path.join("cluster_res", 'clusters_%d'%i_epoch))
+        return cluster_result
+
 
     def forward(self, *inputs, layer_id=-1, cache_output=False, detail=False):
         """
@@ -247,15 +383,18 @@ class LM_QAGNN(nn.Module):
         adj = (edge_index.to(node_type_ids.device), edge_type.to(node_type_ids.device)) #edge_index: [2, total_E]   edge_type: [total_E, ]
 
         sent_vecs, all_hidden_states = self.encoder(*lm_inputs, layer_id=layer_id)
-        logits, attn = self.decoder(sent_vecs.to(node_type_ids.device),
+        sent_vecs_fix, all_hidden_states = self.encoder_fix(*lm_inputs, layer_id=layer_id)
+        logits, attn, features = self.decoder(sent_vecs.to(node_type_ids.device),
+                                    sent_vecs_fix.to(node_type_ids.device),
                                     concept_ids,
                                     node_type_ids, node_scores, adj_lengths, adj,
                                     emb_data=None, cache_output=cache_output)
         logits = logits.view(bs, 3)
+
         if not detail:
-            return logits, attn
+            return logits,features, attn
         else:
-            return logits, attn, concept_ids.view(bs, nc, -1), node_type_ids.view(bs, nc, -1), edge_index_orig, edge_type_orig
+            return logits,features, attn, concept_ids.view(bs, nc, -1), node_type_ids.view(bs, nc, -1), edge_index_orig, edge_type_orig
             #edge_index_orig: list of (batch_size, num_choice). each entry is torch.tensor(2, E)
             #edge_type_orig: list of (batch_size, num_choice). each entry is torch.tensor(E, )
 
