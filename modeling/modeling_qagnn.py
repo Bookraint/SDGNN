@@ -4,6 +4,7 @@ from utils.layers import *
 import torch.nn.functional as F
 from utils.utils import Stance_loss
 import faiss
+import numpy as np
 
 class QAGNN_Message_Passing(nn.Module):
     def __init__(self, args, k, n_ntype, n_etype, input_size, hidden_size, output_size,
@@ -140,6 +141,8 @@ class QAGNN(nn.Module):
         if init_range > 0:
             self.apply(self._init_weights)
 
+        
+
 
     def _init_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -233,34 +236,44 @@ class LM_QAGNN(nn.Module):
                                         fc_dim, n_fc_layer, p_emb, p_gnn, p_fc,
                                         pretrained_concept_emb=pretrained_concept_emb, freeze_ent_emb=freeze_ent_emb,
                                         init_range=init_range)
+        
+        self.temperature=0.07
+        self.cluster_result = None
+        self.attn = MultiheadAttPoolLayer(2, 768, 768)
+        self.dropout_fc_a = nn.Dropout(0.1)
+        self.fc_a = MLP(768*2, 256, 768,num_layers=0,dropout=0.2, layer_norm=True)
 
-    def compute_features(self,train_loader):
+    def compute_features(self,train_loader,args):
         print('Computing features...')
         self.encoder.eval()
-        features = torch.zeros(len(train_loader.train_size()),??self.bert_dim).cuda()
-        
+        features = torch.zeros(train_loader.train_size(),768).to("cuda:0")
+
         for qids, labels, *input_data in train_loader.train():
+
             with torch.no_grad():
                 bs = labels.size(0)
                 for a in range(0, bs, args.mini_batch_size):
                     b = min(a + args.mini_batch_size, bs)
+
+                    inputs = [x[a:b] for x in input_data]
+                    _inputs = [x.view(x.size(0) * x.size(1), *x.size()[2:]) for x in inputs[:-6]] + [x.view(x.size(0) * x.size(1), *x.size()[2:]) for x in inputs[-6:-2]] + [sum(x,[]) for x in inputs[-2:]]
+                    *lm_inputs, concept_ids, node_type_ids, node_scores, adj_lengths, edge_index, edge_type = _inputs
+
                     if args.fp16:
                         with torch.cuda.amp.autocast():
-                            logits,features, _ = model(*[x[a:b] for x in input_data], layer_id=args.encoder_layer)
+                            sent_vecs, all_hidden_states = self.encoder(*lm_inputs)
                             # loss = compute_loss(logits, labels[a:b])
                     else:
-                        logits, features, _ = model(*[x[a:b] for x in input_data], layer_id=args.encoder_layer)
+                        sent_vecs, all_hidden_states = self.encoder(*lm_inputs)
                         # loss = compute_loss(logits, labels[a:b])
+                    features[a:b] = sent_vecs
 
+        # check dim
+        # print("sent_vecs.shape:  ",sent_vecs.shape)
+        # print("features.shape:  ",features.shape)
+        # sent_vecs.shape:   torch.Size([2, 768])
+        # features.shape:   torch.Size([13466, 768])
 
-
-        for  batch in tqdm(train_loader):
-            input_features = [batch[feat_name].to(self.device) for feat_name in self.input_features]
-            index = batch['index']
-            with torch.no_grad():
-                feature = self.encoder(input_features)
-                feature = feature.squeeze(dim=1)
-                features[index] = feature
         self.encoder.train()
         return features.cpu()        
 
@@ -288,7 +301,7 @@ class LM_QAGNN(nn.Module):
             res = faiss.StandardGpuResources()
             cfg = faiss.GpuIndexFlatConfig()
             cfg.useFloat16 = False
-            cfg.device = gpu_id
+            cfg.device = 0
             index = faiss.GpuIndexFlatL2(res, d, cfg)
 
             clus.train(x, index)
@@ -321,11 +334,11 @@ class LM_QAGNN(nn.Module):
             density = self.temperature*density/density.mean()  #scale the mean to temperature
 
             # convert to cuda Tensors for broadcast
-            centroids = torch.Tensor(centroids).cuda()
+            centroids = torch.Tensor(centroids).to("cuda:0")
             centroids = torch.nn.functional.normalize(centroids, p=2, dim=1)
 
-            im2cluster = torch.LongTensor(im2cluster).cuda()
-            density = torch.Tensor(density).cuda()
+            im2cluster = torch.LongTensor(im2cluster).to("cuda:0")
+            density = torch.Tensor(density).to("cuda:0")
 
             results['centroids'].append(centroids)
             results['density'].append(density)
@@ -333,7 +346,7 @@ class LM_QAGNN(nn.Module):
 
         return results
 
-    def run_prototype(self,train_loader,i_epoch):
+    def run_prototype(self,train_loader,i_epoch,args):
         # ----------------------- Run-Kmeans -----------------------
 
         self.warmup_epoch = 0
@@ -341,16 +354,16 @@ class LM_QAGNN(nn.Module):
         cluster_result = None
 
         # compute momentum features for center-cropped images
-        features = self.compute_features(train_loader)
+        features = self.compute_features(train_loader,args)
         # pickle.dump(features, open('try_features.dat', 'wb'))
         # features = pickle.load(open('try_features.dat', 'rb'))
 
         # placeholder for clustering result
         cluster_result = {'im2cluster':[],'centroids':[],'density':[]}
         for num_cluster in self.num_cluster:
-            cluster_result['im2cluster'].append(torch.zeros(len(train_loader.dataset),dtype=torch.long).cuda())
-            cluster_result['centroids'].append(torch.zeros(int(num_cluster),self.bert_dim).cuda())
-            cluster_result['density'].append(torch.zeros(int(num_cluster)).cuda())
+            cluster_result['im2cluster'].append(torch.zeros(train_loader.train_size(),dtype=torch.long).to("cuda:0"))
+            cluster_result['centroids'].append(torch.zeros(int(num_cluster),768).to("cuda:0"))
+            cluster_result['density'].append(torch.zeros(int(num_cluster)).to("cuda:0"))
 
         features = features.numpy()
         cluster_result = self.run_kmeans(features)  # run kmeans clustering on master node
@@ -359,7 +372,7 @@ class LM_QAGNN(nn.Module):
         return cluster_result
 
 
-    def forward(self, *inputs, layer_id=-1, cache_output=False, detail=False):
+    def forward(self, *inputs, layer_id=-1,cluster_result=None, cache_output=False, detail=False):
         """
         sent_vecs: (batch_size, num_choice, d_sent)    -> (batch_size * num_choice, d_sent)
         concept_ids: (batch_size, num_choice, n_node)  -> (batch_size * num_choice, n_node)
@@ -384,6 +397,14 @@ class LM_QAGNN(nn.Module):
 
         sent_vecs, all_hidden_states = self.encoder(*lm_inputs, layer_id=layer_id)
         sent_vecs_fix, all_hidden_states = self.encoder_fix(*lm_inputs, layer_id=layer_id)
+
+        #attention with traindataset
+        if self.cluster_result is not None:
+            # TODO:attention
+            sent_vecs_afterattn, _ = self.attn(sent_vecs, self.cluster_result.unsqueeze(0).repeat(sent_vecs.shape[0],1,1))
+            sent_vecs_concat = self.dropout_fc_a(torch.cat((sent_vecs_afterattn, sent_vecs), 1))
+            sent_vecs = self.fc_a(sent_vecs_concat)
+            
         logits, attn, features = self.decoder(sent_vecs.to(node_type_ids.device),
                                     sent_vecs_fix.to(node_type_ids.device),
                                     concept_ids,

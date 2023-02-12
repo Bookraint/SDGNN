@@ -3,11 +3,11 @@ export CUDA_VISIBLE_DEVICES=0,1
 dt=`date '+%Y%m%d_%H%M%S'`
 
 
+# dataset="vast_few_without_LM"
 dataset="vast_few"
 # model='SentiX_Base_Model'
 model='bert-base-uncased'
 model_fix='SentiX_Base_Model'
-freeze_ent_emb=False
 shift
 shift
 args=$@
@@ -27,7 +27,7 @@ scl_loss_weight=0.5
 # k=4 #num of gnn layers
 # k=3 #num of gnn layers
 # k=6 #num of gnn layers
-k=5 #num of gnn layers
+k=7 #num of gnn layers
 gnndim=200
 max_seq_len=200
 
@@ -46,7 +46,7 @@ mkdir -p logs
 ###### Training ######
 for seed in 0; do
   python3 -u qagnn.py --dataset $dataset \
-      --encoder $model --encoder_fix $model_fix -k $k --gnn_dim $gnndim -elr $elr -dlr $dlr -bs $bs -mbs $mbs --fp16 true --seed $seed --max_seq_len $max_seq_len --lr_schedule $lr_schedule --freeze_ent_emb $freeze_ent_emb --scl_loss_weight $scl_loss_weight \
+      --encoder $model --encoder_fix $model_fix -k $k --gnn_dim $gnndim -elr $elr -dlr $dlr -bs $bs -mbs $mbs --fp16 true --seed $seed --max_seq_len $max_seq_len --lr_schedule $lr_schedule --scl_loss_weight $scl_loss_weight \
       --num_relation $num_relation \
       --n_epochs $n_epochs --max_epochs_before_stop 10  \
       --train_adj data/${dataset}/graph/train.graph.adj.pk \

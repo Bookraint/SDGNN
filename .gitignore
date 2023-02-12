@@ -4,6 +4,7 @@
 
 twitter_data_naacl
 bash_old/
+cluster*
 *txt
 log*
 data*

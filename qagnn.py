@@ -70,11 +70,13 @@ def main():
     parser.add_argument('--wonodetype', dest='wonodetype', action='store_true')
     parser.add_argument('--woedgetype', dest='woedgetype', action='store_true')
     parser.add_argument('--save_attn', dest='save_attn', action='store_true')
+    parser.add_argument('--cluster', dest='cluster', action='store_true')
     parser.add_argument('--load_model_path', default=None)
 
 
     # data
     parser.add_argument('--num_relation', default=38, type=int, help='number of relations')
+    parser.add_argument('--cluster_times', default=10, type=int, help='number of relations')
     parser.add_argument('--train_adj', default=f'data/{args.dataset}/graph/train.graph.adj.pk')
     parser.add_argument('--dev_adj', default=f'data/{args.dataset}/graph/dev.graph.adj.pk')
     parser.add_argument('--test_adj', default=f'data/{args.dataset}/graph/test.graph.adj.pk')
@@ -196,6 +198,10 @@ def train(args):
         model.encoder.to(device0)
         model.encoder_fix.to(device0)
         model.decoder.to(device1)
+        model.attn.to(device0)
+        model.fc_a.to(device0)
+
+
 
 
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
@@ -269,6 +275,7 @@ def train(args):
     start_time = time.time()
     model.train()
     freeze_net(model.encoder)
+
     if True:
     # try:
         for epoch_id in range(args.n_epochs):
@@ -277,7 +284,19 @@ def train(args):
             if epoch_id == args.refreeze_epoch:
                 freeze_net(model.encoder)
             model.train()
-            for qids, labels, *input_data in dataset.train():
+
+            #add
+            # model.compute_features(dataset,args)
+            # model.run_prototype(dataset,epoch_id,args)
+
+            for i_batch,bat in enumerate(dataset.train()):
+
+                if args.cluster and i_batch % int(len(dataset.train())/args.cluster_times) == 0:
+                    print("len(dataset.train()):  ",len(dataset.train()))
+                    model.cluster_result = model.run_prototype(dataset,epoch_id,args)['centroids'][0]
+                    model.cluster_result = model.cluster_result.to("cuda:0")
+
+                qids, labels, *input_data = bat
                 optimizer.zero_grad()
                 bs = labels.size(0)
                 for a in range(0, bs, args.mini_batch_size):
@@ -291,6 +310,9 @@ def train(args):
                         loss = compute_loss(logits, labels[a:b])
                     if args.scl_loss:
                         loss += args.scl_loss_weight*scl_loss_func(features, labels[a:b])
+
+
+
                     loss = loss * (b - a) / bs
                     if args.fp16:
                         scaler.scale(loss).backward()
@@ -414,6 +436,8 @@ def eval_detail(args):
     model.encoder.to(device0)
     model.encoder_fix.to(device0)
     model.decoder.to(device1)
+    model.attn.to(device0)
+    model.fc_a.to(device0)
     model.eval()
 
     statement_dic = {}
@@ -440,8 +464,12 @@ def eval_detail(args):
                                            max_node_num=old_args.max_node_num, max_seq_length=old_args.max_seq_len,
                                            is_inhouse=args.inhouse, inhouse_train_qids_path=args.inhouse_train_qids,
                                            subsample=args.subsample, use_cache=args.use_cache)
-
+    if args.cluster:
+        model.cluster_result = model.run_prototype(dataset,0,args)['centroids'][0]
+        model.cluster_result = model.cluster_result.to("cuda:0")
+        
     save_test_preds = args.save_model
+
     dev_acc, dev_pro_f1, dev_con_f1, dev_neu_f1, dev_f1_ma = evaluate_accuracy(dataset.dev(), model)
     print('dev_f1_ma {:7.4f}'.format(dev_f1_ma))
     if not save_test_preds:
